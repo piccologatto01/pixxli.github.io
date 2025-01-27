@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Пиксельное Полотно с Лидербордом</title>
+    <title>Пиксельное Полотно с Бустерами и Координатами</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet"> <!-- Подключение шрифта -->
     <style>
         body {
@@ -109,42 +109,37 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             pointer-events:none; /* Чтобы не мешать взаимодействию с canvas */
         }
-        
-        input[type="text"] {
-            padding :5px ;
-        }
     </style>
 </head>
 <body>
-
-<div class="name-input-container">
-    <input type="text" id="playerName" placeholder="Введите ваше имя" />
-    <button id="submitNameButton">Подтвердить</button>
-</div>
 
 <div class="time-display" id="timeDisplay"></div> <!-- Текущее время -->
 <div class="cooldown-display" id="cooldownDisplay">Следующий пиксель через:</div> <!-- Таймер кулдауна -->
 <div class="leaderboard">
     <h3>Таблица лидеров</h3>
     <ul id="leaderboardList">
-        <!-- Здесь будут отображаться участники -->
+        <li>Участник1 - 100 очков</li>
+        <li>Участник2 - 80 очков</li>
+        <li>Участник3 - 60 очков</li>
     </ul>
 </div>
+
+<button class="login-button">Войти</button> <!-- Кнопка "Войти" -->
 
 <canvas id="pixelCanvas" width="1000" height="500"></canvas>
 
 <div class="palette">
-    <div class="color-box" style="background-color:#e10707;" data-color="#e10707"></div>
-    <div class="color-box" style="background-color:#f5873a;" data-color="#f5873a"></div>
-    <div class="color-box" style="background-color:#e5c063;" data-color="#e5c063"></div>
-    <div class="color-box" style="background-color:#eeee67;" data-color="#eeee67"></div>
-    <div class="color-box" style="background-color:#7dea51;" data-color="#7dea51"></div>
-    <div class="color-box" style="background-color:#68e7e7;" data-color="#68e7e7"></div>
-    <div class="color-box" style="background-color:#323df6;" data-color="#323df6"></div>
-    <div class="color-box" style="background-color:#be1af5;" data-color="#be1af5"></div>
-    <div class="color-box" style="background-color:#fab4f4;" data-color="#fab4f4"></div>
-    <div class="color-box" style="background-color:#000000;" data-color="#000000"></div>
-    <div class="color-box" style="background-color:#ffffff;" data-color="#ffffff"></div>
+    <div class="color-box" style="background-color: #e10707;" data-color="#e10707"></div>
+    <div class="color-box" style="background-color: #f5873a;" data-color="#f5873a"></div>
+    <div class="color-box" style="background-color: #e5c063;" data-color="#e5c063"></div>
+    <div class="color-box" style="background-color: #eeee67;" data-color="#eeee67"></div>
+    <div class="color-box" style="background-color: #7dea51;" data-color="#7dea51"></div>
+    <div class="color-box" style="background-color: #68e7e7;" data-color="#68e7e7"></div>
+    <div class="color-box" style="background-color: #323df6;" data-color="#323df6"></div>
+    <div class="color-box" style="background-color: #be1af5;" data-color="#be1af5"></div>
+    <div class="color-box" style="background-color: #fab4f4;" data-color="#fab4f4"></div>
+    <div class="color-box" style="background-color: #000000;" data-color="#000000"></div>
+    <div class="color-box" style="background-color: #ffffff;" data-color="#ffffff"></div>
 </div>
 
 <input type="color" id="customColorPicker" class="color-picker" value="#000000">
@@ -162,11 +157,14 @@
     let canDraw = false; // Разрешение на рисование
     let cooldownTime = getCooldownTime(); // Время кулдауна в миллисекундах
     let remainingCooldown = cooldownTime; // Оставшееся время кулдауна
-    let playerName = ''; // Имя игрока
-    let playerPixels = 0; // Количество поставленных пикселей
 
-    // Обычный кулдаун игрока
-    let normalCooldownTime = cooldownTime;
+    // Бустеры
+    const boosters = {
+        quickArtist : { active : false, duration : 40000 }, // Быстрый художник
+        doubleDamage : { active : false }, // Двойной урон
+        teamShield : { active : false }, // Щит команды
+        massCapture : { active : false } // Массовый захват
+    };
 
     // Функция для определения времени кулдауна
     function getCooldownTime() {
@@ -188,65 +186,91 @@
                 ctx.fillRect(x, y, pixelSize, pixelSize);
             }
         }
+        spawnBooster(); // Спавн бустера при инициализации
+    }
+
+    function spawnBooster() {
+        const boosterX = Math.floor(Math.random() * (canvas.width / pixelSize)) * pixelSize;
+        const boosterY = Math.floor(Math.random() * (canvas.height / pixelSize)) * pixelSize;
+
+        ctx.fillStyle = '#FFD700'; // Цвет бустера (золотой)
+        ctx.fillRect(boosterX, boosterY, pixelSize, pixelSize); // Размер бустера в два пикселя
+        setTimeout(spawnBooster, Math.random() * (30000 - 10000) + 10000); // Спавн нового бустера каждые ~10-30 секунд
     }
 
     // Обработчик клика по полотну для установки пикселей
     canvas.addEventListener('click', (event) => {
-        const rect = canvas.getBoundingClientRect();
-        const x = Math.floor((event.clientX - rect.left) / pixelSize) * pixelSize;
-        const y = Math.floor((event.clientY - rect.top) / pixelSize) * pixelSize;
-
         if (canDraw) { // Проверяем, можно ли рисовать
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.floor((event.clientX - rect.left) / pixelSize) * pixelSize;
+            const y = Math.floor((event.clientY - rect.top) / pixelSize) * pixelSize;
+
             ctx.fillStyle = currentColor; // Устанавливаем текущий цвет
-            ctx.fillRect(x, y, pixelSize, pixelSize);
 
-            playerPixels++; // Увеличиваем счетчик пикселей игрока
-            updateLeaderboard(); // Обновляем таблицу лидеров
+            if (boosters.quickArtist.active) {
+                ctx.fillRect(x, y, pixelSize, pixelSize);
+                activateQuickArtist(); // Проверяем активный бустер "Быстрый художник"
+            } else if (!boosters.quickArtist.active) {
+                ctx.fillRect(x, y, pixelSize, pixelSize);
+                canDraw = false; // Запрещаем рисовать до окончания кулдауна
+                remainingCooldown = cooldownTime;
 
-            canDraw = false; // Запрещаем рисовать до окончания кулдауна
-            remainingCooldown = cooldownTime;
-
-            const countdownInterval = setInterval(() => {
-                remainingCooldown -= 1000;
-                updateCooldownDisplay();
-
-                if (remainingCooldown <= 0) {
-                    clearInterval(countdownInterval);
-                    canDraw = true;
+                const countdownInterval = setInterval(() => {
+                    remainingCooldown -= 1000;
                     updateCooldownDisplay();
-                }
-            }, 1000);
+
+                    if (remainingCooldown <= 0) {
+                        clearInterval(countdownInterval);
+                        canDraw = true;
+                        updateCooldownDisplay();
+                    }
+                }, 1000);
+            }
+
+            checkBoosterCollision(x, y); // Проверяем столкновение с бустером
         }
     });
 
-    function updateLeaderboard() {
-        const leaderboardList = document.getElementById('leaderboardList');
+    function checkBoosterCollision(x, y) {
+        const boosterXRange = [x - pixelSize, x + pixelSize];
+        const boosterYRange = [y - pixelSize, y + pixelSize];
 
-        leaderboardList.innerHTML = ''; // Очищаем текущий список лидеров
-
-        const playerItem = document.createElement('li');
-        playerItem.textContent = `${playerName} - ${playerPixels} пикселей`;
-
-        leaderboardList.appendChild(playerItem); // Добавляем игрока в таблицу лидеров
-
-        // Здесь можно добавить логику для сортировки или добавления других игроков.
+        if (boosters.quickArtist.active === false && x % (pixelSize *2) ===0 && y % (pixelSize *2) ===0 ) {
+            boosters.quickArtist.active = true;
+            activateQuickArtist();
+        } else if (x >= boosterXRange[0] && x <= boosterXRange[1] && y >= boosterYRange[0] && y <= boosterYRange[1]) {
+            boosters.quickArtist.active = true;
+            activateQuickArtist();
+        }
     }
 
-    document.getElementById('submitNameButton').addEventListener('click', () => {
-        playerName = document.getElementById('playerName').value.trim();
+    function activateQuickArtist() {
+        setTimeout(() => { boosters.quickArtist.active = false }, boosters.quickArtist.duration);
+        updateBoosterDisplay();
+    }
 
-        if (playerName) {
-            alert(`Добро пожаловать, ${playerName}!`);
-            document.getElementById('playerName').disabled = true; // Блокируем ввод имени после подтверждения.
-            document.getElementById('submitNameButton').disabled = true;
+    function updateBoosterDisplay() {
+        let displayText = 'Активные бустеры:' + (boosters.quickArtist.active ? ' Быстрый художник' : '');
+        document.getElementById('boosterDisplay').innerText = displayText;
 
-            initCanvas(); // Инициализация полотна после ввода имени.
-            canDraw = true; // Разрешаем рисовать после ввода имени.
-            updateCooldownDisplay(); // Обновляем отображение кулдауна.
+        if (boosters.doubleDamage.active) displayText += ', Двойной урон';
+        if (boosters.teamShield.active) displayText += ', Щит команды';
+        if (boosters.massCapture.active) displayText += ', Массовый захват';
+
+        document.getElementById('boosterDisplay').innerText = displayText.trim();
+    }
+
+    // Обновление отображения кулдауна
+    function updateCooldownDisplay() {
+        const secondsRemaining = Math.ceil(remainingCooldown / 1000);
+        document.getElementById('cooldownDisplay').innerText = `Следующий пиксель через ${secondsRemaining} секунд`;
+
+        if (remainingCooldown <= cooldownTime) {
+            document.getElementById('cooldownDisplay').style.color = 'red';
         } else {
-            alert("Пожалуйста, введите ваше имя.");
+            document.getElementById('cooldownDisplay').style.color = 'green';
         }
-    });
+    }
 
     // Обработчик события выбора цвета из палитры
     const colorBoxes = document.querySelectorAll('.color-box');
@@ -262,6 +286,7 @@
         currentColor = event.target.value; // Устанавливаем текущий цвет
     });
 
+    // Функция для обновления времени
     function updateTime() {
         const now = new Date();
         const options = { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' };
@@ -270,6 +295,7 @@
         cooldownTime = getCooldownTime(); // Обновляем время кулдауна при каждом обновлении времени
     }
 
+    // Отображение координат курсора на полотне
     canvas.addEventListener('mousemove', (event) => {
         const rect = canvas.getBoundingClientRect();
         const xCoord = Math.floor((event.clientX - rect.left) / pixelSize);
@@ -277,10 +303,17 @@
         document.getElementById('coordinatesDisplay').innerText = `Координаты X:${xCoord}, Y:${yCoord}`;
     });
 
+    // Инициализация полотна при загрузке страницы
     window.onload = () => {
+        initCanvas();
         updateTime();
 
+        // Обновление времени каждую секунду
         setInterval(updateTime, 1000);
+
+        canDraw = true;
+
+        updateCooldownDisplay();
     };
 </script>
 
