@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Пиксельное Полотно с Лидербордом</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet"> <!-- Подключение шрифта -->
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: 'Roboto', sans-serif; /* Применение шрифта к телу документа */
+        }
+
+        canvas {
+            border: 1px solid #000;
+            cursor: crosshair;
+            margin-bottom: 10px;
+        }
+
+        .color-picker {
+            margin-bottom: 10px;
+        }
+
+        .palette {
+            display: flex;
+            margin-bottom: 10px;
+        }
+
+        .color-box {
+            width: 30px;
+            height: 30px;
+            margin-right: 5px;
+            cursor: pointer;
+            border: 1px solid #000;
+        }
+
+        .login-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 7px;
+            cursor: pointer;
+        }
+
+        .login-button:hover {
+            background-color: #0056b3;
+        }
+
+        .time-display {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 18px;
+        }
+
+        .cooldown-display {
+            position: absolute;
+            top: 40px; /* Позиция под текущим временем */
+            left: 10px;
+            font-size: 18px;
+            color: red; /* Цвет текста таймера */
+        }
+
+        .leaderboard {
+            position: absolute;
+            top: 70px; /* Обновлено для учета нового элемента */
+            right: 10px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            padding: 10px;
+        }
+
+        .leaderboard h3 {
+            margin-top: 0; /* Убираем верхний отступ у заголовка */
+        }
+
+        .leaderboard ul {
+            list-style-type: none; /* Убираем маркеры у списка */
+            padding-left: 0; /* Убираем отступ слева у списка */
+        }
+
+        .booster-display {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            font-size: 18px;
+            color: green;
+        }
+
+        .coordinates-display {
+            position: absolute;
+            bottom: 50px;
+            left: 10px;
+            font-size: 16px;
+            background-color: rgba(255,255,255,0.8);
+            padding: 5px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            pointer-events:none; /* Чтобы не мешать взаимодействию с canvas */
+        }
+        
+        input[type="text"] {
+            padding :5px ;
+        }
+    </style>
+</head>
+<body>
+
+<div class="name-input-container">
+    <input type="text" id="playerName" placeholder="Введите ваше имя" />
+    <button id="submitNameButton">Подтвердить</button>
+</div>
+
+<div class="time-display" id="timeDisplay"></div> <!-- Текущее время -->
+<div class="cooldown-display" id="cooldownDisplay">Следующий пиксель через:</div> <!-- Таймер кулдауна -->
+<div class="leaderboard">
+    <h3>Таблица лидеров</h3>
+    <ul id="leaderboardList">
+        <!-- Здесь будут отображаться участники -->
+    </ul>
+</div>
+
+<canvas id="pixelCanvas" width="1000" height="500"></canvas>
+
+<div class="palette">
+    <div class="color-box" style="background-color:#e10707;" data-color="#e10707"></div>
+    <div class="color-box" style="background-color:#f5873a;" data-color="#f5873a"></div>
+    <div class="color-box" style="background-color:#e5c063;" data-color="#e5c063"></div>
+    <div class="color-box" style="background-color:#eeee67;" data-color="#eeee67"></div>
+    <div class="color-box" style="background-color:#7dea51;" data-color="#7dea51"></div>
+    <div class="color-box" style="background-color:#68e7e7;" data-color="#68e7e7"></div>
+    <div class="color-box" style="background-color:#323df6;" data-color="#323df6"></div>
+    <div class="color-box" style="background-color:#be1af5;" data-color="#be1af5"></div>
+    <div class="color-box" style="background-color:#fab4f4;" data-color="#fab4f4"></div>
+    <div class="color-box" style="background-color:#000000;" data-color="#000000"></div>
+    <div class="color-box" style="background-color:#ffffff;" data-color="#ffffff"></div>
+</div>
+
+<input type="color" id="customColorPicker" class="color-picker" value="#000000">
+
+<div class="booster-display" id="boosterDisplay">Активные бустеры:</div>
+
+<div class="coordinates-display" id="coordinatesDisplay">Координаты:</div>
+
+<script>
+    const canvas = document.getElementById('pixelCanvas');
+    const ctx = canvas.getContext('2d');
+    const customColorPicker = document.getElementById('customColorPicker');
+    const pixelSize = 3; // Размер одного пикселя
+    let currentColor = '#000000'; // Текущий цвет для рисования
+    let canDraw = false; // Разрешение на рисование
+    let cooldownTime = getCooldownTime(); // Время кулдауна в миллисекундах
+    let remainingCooldown = cooldownTime; // Оставшееся время кулдауна
+    let playerName = ''; // Имя игрока
+    let playerPixels = 0; // Количество поставленных пикселей
+
+    // Обычный кулдаун игрока
+    let normalCooldownTime = cooldownTime;
+
+    // Функция для определения времени кулдауна
+    function getCooldownTime() {
+        const now = new Date();
+        const hours = now.getHours();
+
+        if (hours >= 9 && hours <= 20) {
+            return 60000; // Кулдаун в течение дня
+        } else {
+            return 15000; // Ночной кулдаун
+        }
+    }
+
+    // Инициализация полотна
+    function initCanvas() {
+        for (let x = 0; x < canvas.width; x += pixelSize) {
+            for (let y = 0; y < canvas.height; y += pixelSize) {
+                ctx.fillStyle = '#ffffff'; // Начальный цвет белый
+                ctx.fillRect(x, y, pixelSize, pixelSize);
+            }
+        }
+    }
+
+    // Обработчик клика по полотну для установки пикселей
+    canvas.addEventListener('click', (event) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = Math.floor((event.clientX - rect.left) / pixelSize) * pixelSize;
+        const y = Math.floor((event.clientY - rect.top) / pixelSize) * pixelSize;
+
+        if (canDraw) { // Проверяем, можно ли рисовать
+            ctx.fillStyle = currentColor; // Устанавливаем текущий цвет
+            ctx.fillRect(x, y, pixelSize, pixelSize);
+
+            playerPixels++; // Увеличиваем счетчик пикселей игрока
+            updateLeaderboard(); // Обновляем таблицу лидеров
+
+            canDraw = false; // Запрещаем рисовать до окончания кулдауна
+            remainingCooldown = cooldownTime;
+
+            const countdownInterval = setInterval(() => {
+                remainingCooldown -= 1000;
+                updateCooldownDisplay();
+
+                if (remainingCooldown <= 0) {
+                    clearInterval(countdownInterval);
+                    canDraw = true;
+                    updateCooldownDisplay();
+                }
+            }, 1000);
+        }
+    });
+
+    function updateLeaderboard() {
+        const leaderboardList = document.getElementById('leaderboardList');
+
+        leaderboardList.innerHTML = ''; // Очищаем текущий список лидеров
+
+        const playerItem = document.createElement('li');
+        playerItem.textContent = `${playerName} - ${playerPixels} пикселей`;
+
+        leaderboardList.appendChild(playerItem); // Добавляем игрока в таблицу лидеров
+
+        // Здесь можно добавить логику для сортировки или добавления других игроков.
+    }
+
+    document.getElementById('submitNameButton').addEventListener('click', () => {
+        playerName = document.getElementById('playerName').value.trim();
+
+        if (playerName) {
+            alert(`Добро пожаловать, ${playerName}!`);
+            document.getElementById('playerName').disabled = true; // Блокируем ввод имени после подтверждения.
+            document.getElementById('submitNameButton').disabled = true;
+
+            initCanvas(); // Инициализация полотна после ввода имени.
+            canDraw = true; // Разрешаем рисовать после ввода имени.
+            updateCooldownDisplay(); // Обновляем отображение кулдауна.
+        } else {
+            alert("Пожалуйста, введите ваше имя.");
+        }
+    });
+
+    // Обработчик события выбора цвета из палитры
+    const colorBoxes = document.querySelectorAll('.color-box');
+    colorBoxes.forEach(box => {
+        box.addEventListener('click', (event) => {
+            currentColor = event.target.dataset.color; // Устанавливаем текущий цвет
+            customColorPicker.value = currentColor; // Обновляем цветовой выбор
+        });
+    });
+
+    // Обработчик изменения цвета в пользовательском выборе
+    customColorPicker.addEventListener('input', (event) => {
+        currentColor = event.target.value; // Устанавливаем текущий цвет
+    });
+
+    function updateTime() {
+        const now = new Date();
+        const options = { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' };
+        document.getElementById('timeDisplay').innerText = now.toLocaleTimeString('ru-RU', options);
+
+        cooldownTime = getCooldownTime(); // Обновляем время кулдауна при каждом обновлении времени
+    }
+
+    canvas.addEventListener('mousemove', (event) => {
+        const rect = canvas.getBoundingClientRect();
+        const xCoord = Math.floor((event.clientX - rect.left) / pixelSize);
+        const yCoord = Math.floor((event.clientY - rect.top) / pixelSize);
+        document.getElementById('coordinatesDisplay').innerText = `Координаты X:${xCoord}, Y:${yCoord}`;
+    });
+
+    window.onload = () => {
+        updateTime();
+
+        setInterval(updateTime, 1000);
+    };
+</script>
+
+</body>
+</html>
